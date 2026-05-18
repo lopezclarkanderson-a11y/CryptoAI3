@@ -1,16 +1,18 @@
-export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+export const dynamic = "force-dynamic";
+
+// Initialize the Gemini SDK
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { content: "Error: OpenAI API key is missing on the server configuration." },
+        { content: "Error: Gemini API key is missing on the server configuration." },
         { status: 500 }
       );
     }
@@ -23,36 +25,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ content: "Error: No file uploaded." }, { status: 400 });
     }
 
-    // Convert the file to a buffer and then to a base64 string for the AI to look at
+    // Convert the file to an ArrayBuffer and then to a Buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const base64Image = buffer.toString("base64");
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", 
-      messages: [
+    const systemInstruction = 
+      "You are a professional crypto trading coach. Analyze the provided chart screenshot. " +
+      "Detail an Entry zone, Stop Loss, and Take Profit target, alongside a confidence score (1-10). " +
+      "Emphasize risk management and adherence to a minimum 1:2 risk-reward structure.";
+
+    // Call the free Gemini model
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        "Analyze this crypto trade setup and evaluate its structural validity.",
         {
-          role: "system",
-          content: "You are a professional crypto trading coach. Analyze the provided chart screenshot. Detail an Entry zone, Stop Loss, and Take Profit target, alongside a confidence score (1-10). Emphasize risk management and adherence to a minimum 1:2 risk-reward structure.",
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Analyze this crypto trade setup and evaluate its structural validity." },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${file.type};base64,${base64Image}`,
-              },
-            },
-          ],
+          inlineData: {
+            data: buffer.toString("base64"),
+            mimeType: file.type,
+          },
         },
       ],
+      config: {
+        systemInstruction: systemInstruction,
+      },
     });
 
-    return NextResponse.json({ content: response.choices[0].message.content });
+    return NextResponse.json({ content: response.text });
   } catch (error: any) {
-    console.error("OpenAI Error:", error);
+    console.error("Gemini Error:", error);
     return NextResponse.json(
       { content: `AI Error: ${error.message || "Failed to generate analysis"}` },
       { status: 500 }
