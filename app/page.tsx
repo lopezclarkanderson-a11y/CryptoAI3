@@ -13,10 +13,14 @@ export default function Home() {
     setLoading(true);
     setAnalysis('AI is analyzing your chart setup...');
 
+    // Package the file cleanly so it can be sent over the network
+    const formData = new FormData();
+    formData.append('file', file);
+
     try {
-      // Send a request to our backend API route
       const response = await fetch('/api/analyze', {
         method: 'POST',
+        body: formData, // Sending the actual image data here!
       });
       
       const data = await response.json();
@@ -39,7 +43,6 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Risk Management Reminder Box */}
       <div className="border border-red-500/30 bg-red-950/20 p-4 rounded-lg">
         <h3 className="text-red-400 font-semibold mb-1">⚠️ Core Risk Mandate:</h3>
         <ul className="text-xs text-gray-400 list-disc list-inside space-y-1">
@@ -49,7 +52,6 @@ export default function Home() {
         </ul>
       </div>
 
-      {/* File Upload Button */}
       <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800 flex flex-col gap-4">
         <label className="block text-sm font-medium text-gray-300">
           Select Chart Screenshot (BTC/ETH/SOL)
@@ -62,7 +64,6 @@ export default function Home() {
         />
       </div>
 
-      {/* AI Output Window */}
       {analysis && (
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl mt-4">
           <h2 className="text-lg font-bold mb-3 text-amber-400 flex items-center gap-2">

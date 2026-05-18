@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
+import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    // Check if the API key is present
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { content: "Error: OpenAI API key is missing on the server configuration." },
@@ -15,8 +15,21 @@ export async function POST() {
       );
     }
 
+    // Extract the image file from the request data
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      return NextResponse.json({ content: "Error: No file uploaded." }, { status: 400 });
+    }
+
+    // Convert the file to a buffer and then to a base64 string for the AI to look at
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64Image = buffer.toString("base64");
+
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // fast, affordable, and supports vision/images
+      model: "gpt-4o-mini", 
       messages: [
         {
           role: "system",
@@ -24,7 +37,15 @@ export async function POST() {
         },
         {
           role: "user",
-          content: "Analyze this crypto trade setup and evaluate its structural validity.",
+          content: [
+            { type: "text", text: "Analyze this crypto trade setup and evaluate its structural validity." },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${file.type};base64,${base64Image}`,
+              },
+            },
+          ],
         },
       ],
     });
